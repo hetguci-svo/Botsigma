@@ -1,100 +1,55 @@
-)
-""")
-cursor.execute("""CREATE TABLE IF NOT EXISTS promo(
-user_id INT, 
-activation INT, 
-promo_name TEXT
-)
-""")
+import aiogram
+import logging
+import sqlite3
+import random, time, asyncio
+from aiogram import Bot, Dispatcher, executor, types
+from time import gmtime, strptime, strftime
+import config as cfg
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message
+from aiogram.dispatcher.middlewares import BaseMiddleware
+from aiogram.utils.exceptions import Throttled
+from aiogram.contrib.middlewares.logging import LoggingMiddleware
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from aiogram.dispatcher.filters.state import State, StatesGroup
+from aiogram.dispatcher.storage import FSMContext
+from datetime import datetime, timedelta
 
-cursor.execute("""CREATE TABLE IF NOT EXISTS promo1(
-    user_id INT,
-    members INT,
-    ob_members INT
-)
-""")
 
-cursor.execute("""CREATE TABLE IF NOT EXISTS promo2(
-    user_id INT,
-    members INT,
-    ob_members INT
-)
-""")
-cursor.execute("""CREATE TABLE IF NOT EXISTS promo3(
-    user_id INT,
-    members INT,
-    ob_members INT
-)
-""")
-cursor.execute("""CREATE TABLE IF NOT EXISTS promo4(
-    user_id INT,
-    members INT,
-    ob_members INT
-)
-""")
+logging.basicConfig(level=logging.INFO)
 
-cursor.execute("""CREATE TABLE IF NOT EXISTS promo5(
-    user_id INT,
-    members INT,
-    ob_members INT
-)
-""")
+bot = Bot(token=cfg.token, parse_mode='html')
 
-cursor.execute("""CREATE TABLE IF NOT EXISTS promo6(
-    user_id INT,
-    members INT,
-    ob_members INT
-)
-""")
+storage = MemoryStorage()
 
-cursor.execute("""CREATE TABLE IF NOT EXISTS promo7(
-    user_id INT,
-    members INT,
-    ob_members INT
-)
-""")
+dp = Dispatcher(bot=bot, storage=storage)
 
-cursor.execute("""CREATE TABLE IF NOT EXISTS promo8(
-    user_id INT,
-    members INT,
-    ob_members INT
-)
-""")
+dp.middleware.setup(LoggingMiddleware())
 
-cursor.execute("""CREATE TABLE IF NOT EXISTS promo9(
-    user_id INT,
-    members INT,
-    ob_members INT
-)
-""")
+print("""\033[1;32m
+|-----------------------|
+|Developer: geyklub.      |
+|-----------------------|\033[0m""")
 
-cursor.execute("""CREATE TABLE IF NOT EXISTS promo10(
-    user_id INT,
-    members INT,
-    ob_members INT
-)
-""")
 
-cursor.execute("""CREATE TABLE IF NOT EXISTS promo11(
-    user_id INT,
-    members INT,
-    ob_members INT
-)
-""")
+import sqlite3
 
-cursor.execute("""CREATE TABLE IF NOT EXISTS promo12(
-    user_id INT,
-    members INT,
-    ob_members INT
-)
-""")
+# Подключение к базе данных
+connect = sqlite3.connect('your_database.db')
+cursor = connect.cursor()
 
-cursor.execute("""CREATE TABLE IF NOT EXISTS promo13(
-    user_id INT,
-    members INT,
-    ob_members INT
+# Создание таблицы, если она не существует
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS users (
+    user_id INTEGER PRIMARY KEY,
+    user_name TEXT,
+    balance INTEGER,
+    scam INTEGER,
+    some_other_field INTEGER
 )
-""")
+''')
+
+connect.commit()
 
 async def anti_flood(*args, **kwargs):
 	return
@@ -221,90 +176,39 @@ async def balance(message):
 @dp.message_handler(commands=['start'])
 @dp.throttled(anti_flood, rate=0.5)
 async def start(message):
-	msg = message
-	user_id = message.from_user.id
-	user_name = message.from_user.full_name
-	photo = open('start.jpg', 'rb')
-	referrer_id = None
-	cursor.execute(f'SELECT user_id from users where user_id = {user_id}')
-	if cursor.fetchone() is None:
-		start_command = message.text
-		referrer_id = str(start_command[7:])
-		if str(referrer_id) != '' and referrer_id.isdigit():
-			if str(referrer_id) != str(msg.from_user.id):
-				global referrer_id2
-				referrer_id2=referrer_id
-				await bot.send_photo(chat_id = message.chat.id, photo=photo, caption='✅ <b>Придумай имя своему персонажу</b>')
-				await reg.ref.set()
-			else:
-				await message.answer('Гениально, но нет.')
-		else:
-			await bot.send_photo(chat_id = message.chat.id, photo=photo, caption='✅ <b>Придумай имя своему персонажу</b>')
-			await reg.st.set()
-	else:
-		if message.chat.id == user_id:
-			kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
-			b1 = InlineKeyboardButton('Я')
-			b2 = InlineKeyboardButton('Помощь')
-			b2 = InlineKeyboardButton('Бизнес')
-			kb.row(b1, b2,b3)
-			await message.answer(f'🎛 <b>Меню бота</b>', reply_markup=kb)
+    user_id = message.from_user.id
+    user_name = message.from_user.full_name
 
-@dp.message_handler(content_types=types.ContentType.ANY, state=reg.st)
-async def regs(message, state: FSMContext):
-	user_id = message.from_user.id
-	name = message.from_user.full_name
-	user_name = message.text
-	if message.chat.id == user_id:
-		kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
-		b1 = InlineKeyboardButton('Я')
-		b2 = InlineKeyboardButton('Помощь')
-		kb.row(b1, b2)
-	await message.answer(f'''✈ <b>{user_name}, ты завершил регистрацию</b>
+    # Проверка на существование пользователя
+    cursor.execute('SELECT user_id FROM users WHERE user_id = ?', (user_id,))
+    if cursor.fetchone() is None:
+        # Пользователь не найден, начинаем регистрацию
+        await message.answer('✅ <b>Придумай имя своему персонажу</b>')
+        await reg.st.set()  # Установите состояние для регистрации
+    else:
+        # Пользователь уже существует
+        kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        b1 = InlineKeyboardButton('Я')
+        b2 = InlineKeyboardButton('Помощь')
+        kb.row(b1, b2)
+        await message.answer(f'🎛 <b>Меню бота</b>', reply_markup=kb)
 
+@dp.message_handler(state=reg.st)
+async def regs(message: types.Message, state: FSMContext):
+    user_id = message.from_user.id
+    user_name = message.text
+
+    cursor.execute("INSERT INTO users (user_id, user_name, balance, scam, some_other_field) VALUES (?, ?, ?, ?, ?);",
+                   (user_id, user_name, 200, 0, 0))
+    connect.commit()
+    
+    await message.answer(f'''✈ <b>{user_name}, ты завершил регистрацию</b>
 <b>бот миллионер - это бот где ты можешь:</b>
-<i>зарабатывать деньги: покупать машины, одежду; строить бизнес; вступить в опг или создать свой и многое другое...</i>''', reply_markup=kb)
-	cursor.execute("INSERT INTO users VALUES(?, ?, ?, ?, ?);", (user_id, user_name, 200, 0, 0))
-	connect.commit()
-	await state.finish()
-
-@dp.message_handler(content_types=types.ContentType.ANY, state=reg.ref)
-async def regs(message, state: FSMContext):
-	user_id = message.from_user.id
-	name = message.from_user.full_name
-	user_name = message.text
-	if message.chat.id == user_id:
-		kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
-		b1 = InlineKeyboardButton('Я')
-		b2 = InlineKeyboardButton('Помощь')
-		kb.row(b1, b2)
-	await message.answer(f'''✈ <b>{user_name}, ты завершил регистрацию</b>
-
-<b>бот миллионер - это бот где ты можешь:</b>
-<i>зарабатывать деньги: покупать машины, одежду; строить бизнес; вступить в опг или создать свой и многое другое...</i>''', reply_markup=kb)
-	cursor.execute("INSERT INTO users VALUES(?, ?, ?, ?, ?);", (user_id, user_name, 200, 0, 0))
-	connect.commit()
-	await state.finish()
-	balance = cursor.execute(f'SELECT balance from users where user_id = {referrer_id2}').fetchone()
-	balance = int(balance[0])
-	scam = cursor.execute(f'SELECT scam from users where user_id = {referrer_id2}').fetchone()
-	scam = int(scam[0])
-	cursor.execute(f'UPDATE users SET balance = {balance+400000000} WHERE user_id = {referrer_id2}')
-	cursor.execute(f'UPDATE users SET scam = {scam+400000000} WHERE user_id = {referrer_id2}')
-	await bot.send_message(referrer_id2, f'''🦣 <b>Есть профит!</b>
-	<i>- Вам удалось заскамить {name}. Вы получили » 400.000 000$</i>''')
-	connect.commit()
-
+<i>зарабатывать деньги: покупать машины, одежду; строить бизнес; вступить в опг или создать свой и многое другое...</i>''')
+    
+    await state.finish()
 	
-	c = int(message.text.split()[1])
-	
-	if user_id == cfg.admin:
-		if c in range(0, 5):
-			await message.answer(f'Шанс в /coin /рулетке изменен на {c}/4')
-			cursor.execute(f'UPDATE chance SET chance = {c}')
-			connect.commit()
-		else:
-			await message.answer('Шанс может быть установлен в диапазоне 0-4')
+
 	
 @dp.message_handler(commands=['coin'])
 @dp.throttled(anti_flood, rate=0.5)

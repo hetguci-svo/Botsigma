@@ -14,7 +14,6 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.dispatcher.storage import FSMContext
 from datetime import datetime, timedelta
-from PIL import Image, ImageDraw, ImageFont
 
 logging.basicConfig(level=logging.INFO)
 
